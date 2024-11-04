@@ -2,7 +2,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import torch
 from lightning import LightningDataModule
-from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms
 
@@ -54,6 +54,8 @@ class STL10DataModule(LightningDataModule):
         self,
         data_dir: str = "data/stl10",
         train_val_split: Tuple[int, int, int] = (0.8, 0.2),
+        train_transform = None,
+        val_transform = None,
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
@@ -64,10 +66,8 @@ class STL10DataModule(LightningDataModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # data transformations
-        self.transforms = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
+        self.train_transform = lambda image: train_transform(image=np.array(image))['image'] if train_transform else image
+        self.val_transform = lambda image: val_transform(image=np.array(image))['image'] if val_transform else image
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
@@ -96,13 +96,15 @@ class STL10DataModule(LightningDataModule):
 
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            trainset = ImageFolder(os.path.join(self.hparams.data_dir, 'img'), transform=self.transforms)
-            testset = ImageFolder(os.path.join(self.hparams.data_dir, 'test_img'), transform=self.transforms)
-            self.data_train, self.data_val = random_split(
-                dataset=trainset,
-                lengths=self.hparams.train_val_split,
-                generator=torch.Generator().manual_seed(42),
-            )
+            trainset = ImageFolder(os.path.join(self.hparams.data_dir, 'img'), transform=self.train_transform)
+            valset = ImageFolder(os.path.join(self.hparams.data_dir, 'img'), transform=self.val_transform)
+            indices = np.arange(len(trainset))
+            np.random.shuffle(indices)
+            train_num = int(self.hparams.train_val_split[0] * len(indices))
+            self.data_train = Subset(trainset, indices=indices[:train_num])
+            self.data_val = Subset(valset, indices=indices[train_num:])
+
+            testset = ImageFolder(os.path.join(self.hparams.data_dir, 'test_img'), transform=self.val_transform)
             self.data_test = testset
 
     def train_dataloader(self) -> DataLoader[Any]:
