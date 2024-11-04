@@ -1,20 +1,20 @@
 defaults:
-  - net: simple_dense_net
+  - net: resnet18
 
 _target_: src.models.mnist_module.MNISTLitModule
 
 optimizer:
-  _target_: torch.optim.Adam
+  _target_: torch.optim.SGD
   _partial_: true
-  lr: 0.001
-  weight_decay: 0.0
+  momentum: 0.9
+  lr: 0.1
+  weight_decay: 5e-4
 
 scheduler:
-  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  _target_: torch.optim.lr_scheduler.StepLR
   _partial_: true
-  mode: min
-  factor: 0.1
-  patience: 10
+  step_size: 40
+  gamma: 0.2
 
 
 # compile model for faster training with pytorch 2.0
