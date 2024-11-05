@@ -1,51 +1,11 @@
+import os
 from typing import Any, Dict, Optional, Tuple
 
+import numpy as np
 import torch
 from lightning import LightningDataModule
-from torch.utils.data import DataLoader, Dataset, Subset
-from torchvision.datasets import ImageFolder
-from torchvision.transforms import transforms
-
-from STL10.stl10_input import *
-
-
-def download_stl10(data_dir):
-    from tqdm import tqdm
-
-    os.makedirs(data_dir)
-    UNLABELED_PATH = os.path.join(data_dir, 'unlabeled_img')
-    TEST_PATH = os.path.join(data_dir, 'test_img')
-
-    # download data if needed
-    download_and_extract()
-
-    # test to check if the whole dataset is read correctly
-    images = read_all_images(DATA_PATH)
-    print(images.shape)
-
-    labels = read_labels(LABEL_PATH)
-    print(labels.shape)
-
-    # save images to disk
-    save_images(images, labels)
-
-    unlabeled_images = read_all_images(os.path.join(DATA_DIR, 'stl10_binary/unlabeled_X.bin'))
-    if not os.path.exists(UNLABELED_PATH):
-        os.makedirs(UNLABELED_PATH, exist_ok=True)
-    for i, image in enumerate(tqdm(unlabeled_images)):
-        save_image(image, os.path.join(UNLABELED_PATH, str(i)))
-
-    test_images = read_all_images(os.path.join(DATA_DIR, 'stl10_binary/test_X.bin'))
-    labels = read_labels(os.path.join(DATA_DIR, 'stl10_binary/test_y.bin'))
-    os.makedirs(TEST_PATH, exist_ok=True)
-    for label in range(1, 11):
-        os.makedirs(os.path.join(TEST_PATH, str(label)), exist_ok=True)
-    for i, (image, label) in tqdm(enumerate(zip(test_images, labels)), total=len(labels)):
-        save_image(image, os.path.join(TEST_PATH, str(label), str(i)))
-
-    os.rename('img', os.path.join(data_dir, 'img'))
-    os.rename('data/stl10_binary.tar.gz', os.path.join(data_dir, 'stl10_binary.tar.gz'))
-    os.rename('data/stl10_binary', os.path.join(data_dir, 'stl10_binary'))
+from torch.utils.data import DataLoader, Dataset, random_split
+from torchvision.datasets import STL10
 
 
 class STL10DataModule(LightningDataModule):
@@ -80,10 +40,10 @@ class STL10DataModule(LightningDataModule):
         return 10
 
     def prepare_data(self) -> None:
-        if not os.path.isdir(self.hparams.data_dir):
-            print('Start to prepare_data...')
-            download_stl10(self.hparams.data_dir)
-            print('Finished to prepare_data...')
+        if not os.path.isdir(os.path.join(self.hparams.data_dir, 'stl10_binary')):
+            STL10(self.hparams.data_dir, split='train', download=True)
+            STL10(self.hparams.data_dir, split='test', download=True)
+            # STL10(self.hparams.data_dir, split='unlabeled', download=True)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # Divide batch size by the number of devices.
@@ -96,16 +56,19 @@ class STL10DataModule(LightningDataModule):
 
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            trainset = ImageFolder(os.path.join(self.hparams.data_dir, 'img'), transform=self.train_transform)
-            valset = ImageFolder(os.path.join(self.hparams.data_dir, 'img'), transform=self.val_transform)
-            indices = np.arange(len(trainset))
-            np.random.shuffle(indices)
-            train_num = int(self.hparams.train_val_split[0] * len(indices))
-            self.data_train = Subset(trainset, indices=indices[:train_num])
-            self.data_val = Subset(valset, indices=indices[train_num:])
-
-            testset = ImageFolder(os.path.join(self.hparams.data_dir, 'test_img'), transform=self.val_transform)
-            self.data_test = testset
+            trainset = STL10(self.hparams.data_dir, split='train', transform=self.train_transform)
+            valset = STL10(self.hparams.data_dir, split='train', transform=self.val_transform)
+            self.data_train, _ = random_split(
+                dataset=trainset,
+                lengths=self.hparams.train_val_split,
+                generator=torch.Generator().manual_seed(42),
+            )
+            _, self.data_val = random_split(
+                dataset=valset,
+                lengths=self.hparams.train_val_split,
+                generator=torch.Generator().manual_seed(42),
+            )
+            self.data_test = STL10(self.hparams.data_dir, split='test', transform=self.val_transform)
 
     def train_dataloader(self) -> DataLoader[Any]:
         return DataLoader(

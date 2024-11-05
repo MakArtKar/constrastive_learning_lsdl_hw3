@@ -58,9 +58,6 @@ class MNISTLitModule(LightningModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        *_, (last_module_name, last_module) = net.named_modules()
-        if isinstance(last_module, torch.nn.Linear) and last_module.out_features != 10:
-            setattr(net, last_module_name, torch.nn.Linear(last_module.in_features, 10))
         self.net = net
 
         # loss function
