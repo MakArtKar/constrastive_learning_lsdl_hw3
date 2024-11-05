@@ -3,6 +3,9 @@ defaults:
 
 _target_: src.models.mnist_module.MNISTLitModule
 
+net:
+  num_classes: 10
+
 optimizer:
   _target_: torch.optim.SGD
   _partial_: true
