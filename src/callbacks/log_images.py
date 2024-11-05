@@ -23,24 +23,27 @@ class LogImagesCallback(pl.Callback):
 
     def log_images(self, trainer, pl_module, dataloader, stage):
         # Fetch a batch of images and labels
-        images, labels = next(iter(dataloader))
-        images, labels = images[:self.num_images], labels[:self.num_images]
+        images_list, labels = next(iter(dataloader))
+        if isinstance(images_list, torch.Tensor):
+            images_list = [images_list]
+        for i, images in enumerate(images_list):
+            images, labels = images[:self.num_images], labels[:self.num_images]
 
-        # Move images to the appropriate device
-        images = images.to(pl_module.device)
+            # Move images to the appropriate device
+            images = images.to(pl_module.device)
 
-        # Forward pass to get predictions if model is in eval mode
-        pl_module.eval()
-        with torch.no_grad():
-            preds = pl_module(images)
-        pl_module.train()
+            # Forward pass to get predictions if model is in eval mode
+            pl_module.eval()
+            with torch.no_grad():
+                preds = pl_module(images)
+            pl_module.train()
 
-        # Undo normalization
-        images = self.denormalize(images.cpu())
+            # Undo normalization
+            images = self.denormalize(images.cpu())
 
-        # Log the images to the logger
-        trainer.logger.log_image(key=f"{stage}_images", images=list(images))
-        
+            # Log the images to the logger
+            trainer.logger.log_image(key=f"{stage}_images{i + 1}", images=list(images))
+
     def on_train_epoch_end(self, trainer, pl_module):
         """Log images from the training set at the end of each training epoch."""
         if hasattr(trainer.datamodule, "train_dataloader"):

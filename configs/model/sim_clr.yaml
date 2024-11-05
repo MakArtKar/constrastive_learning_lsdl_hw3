@@ -1,0 +1,24 @@
+defaults:
+  - criterion: simclr.yaml
+  - net: resnet18
+
+_target_: src.models.sim_clr_module.SimCLRModule
+
+net:
+  num_classes: 512
+
+optimizer:
+  _target_: torch.optim.SGD
+  _partial_: true
+  momentum: 0.9
+  lr: 0.1
+  weight_decay: 5e-4
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.StepLR
+  _partial_: true
+  step_size: 40
+  gamma: 0.2
+
+# compile model for faster training with pytorch 2.0
+compile: false

@@ -1,0 +1,41 @@
+_target_: src.transforms.DuplicateTransform
+transform:
+  _target_: albumentations.Compose
+  transforms:
+    - _target_: albumentations.HorizontalFlip
+    - _target_: albumentations.PadIfNeeded
+      min_height: 108
+      min_width: 108
+      p: 1
+    - _target_: albumentations.RandomCrop
+      height: 96
+      width: 96
+      p: 1
+    - _target_: albumentations.ColorJitter
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+      hue: 0.1
+      p: 0.8
+    - _target_: albumentations.GaussianBlur
+      blur_limit: [3, 7]
+      p: 1
+    - _target_: albumentations.GaussNoise
+      p: 1
+    - _target_: albumentations.ToGray
+      p: 0.2
+    - _target_: albumentations.Rotate
+      limit: 10
+      p: 0.8
+    - _target_: albumentations.Normalize
+      mean: [0.4914, 0.4822, 0.4465]
+      std: [0.247, 0.243, 0.261]
+    - _target_: albumentations.CoarseDropout
+      min_holes: 1
+      max_holes: 1
+      min_width: 32
+      max_width: 32
+      min_heigth: 32
+      max_height: 32
+      p: 0.5
+    - _target_: albumentations.pytorch.ToTensorV2
