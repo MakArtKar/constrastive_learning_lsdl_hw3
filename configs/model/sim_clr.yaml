@@ -4,6 +4,8 @@ defaults:
 
 _target_: src.models.sim_clr_module.SimCLRModule
 
+batch_size: ${data.batch_size}
+
 net:
   num_classes: 512
 

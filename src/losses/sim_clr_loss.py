@@ -10,5 +10,5 @@ class SimCLRLoss(torch.nn.Module):
     def forward(self, feats: torch.tensor) -> torch.tensor:
         sim = F.cosine_similarity(feats.unsqueeze(0), feats.unsqueeze(1), dim=-1) / self.temperature
         masked_sim = torch.where(torch.eye(sim.shape[0], device=sim.device, dtype=bool), -torch.inf, sim)
-        loss = torch.logsumexp(sim, dim=-1) - torch.roll(sim, feats.size(0) // 2, 0)
+        loss = torch.logsumexp(masked_sim, dim=-1) - torch.roll(masked_sim, feats.size(0) // 2, 0)
         return loss.mean()
