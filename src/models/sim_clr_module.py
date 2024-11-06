@@ -28,7 +28,8 @@ class SimCLRModule(LightningModule):
             torch.nn.ReLU(),
             torch.nn.Linear(net.fc.out_features, net.fc.out_features // 4)
         )
-        self.net = net
+        self.net = net.to(memory_format=torch.channels_last)
+        # self.net = net
 
         self.criterion = criterion
 
@@ -36,8 +37,8 @@ class SimCLRModule(LightningModule):
         self.train_acc_top5 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=5)
         self.val_acc_top1 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=1)
         self.val_acc_top5 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=5)
-        self.val_acc_top1 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=1)
-        self.val_acc_top5 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=5)
+        self.test_acc_top1 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=1)
+        self.test_acc_top5 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=5)
 
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
@@ -46,7 +47,8 @@ class SimCLRModule(LightningModule):
         self.val_acc_best = MaxMetric()
 
     def forward(self, x):
-        return self.net(x)
+        return self.net(x.to(memory_format=torch.channels_last))
+        # return self.net(x)
 
     def get_sim_matrix(self, feats):
         sim = F.cosine_similarity(feats.unsqueeze(0), feats.unsqueeze(1), dim=-1)
@@ -63,7 +65,10 @@ class SimCLRModule(LightningModule):
         loss = self.criterion(feats)
 
         scores = -self.get_sim_matrix(feats)
-        gts = torch.arange(scores.size(0), dtype=int, device=scores.device).roll(scores.size(0) // 2, dims=0)
+        if scores.shape[1] < self.hparams.batch_size * 2:  # last batch
+            scores = torch.cat([scores, -torch.ones(scores.shape[0], self.hparams.batch_size * 2 - scores.shape[1], device=scores.device) * torch.inf], dim=1)
+        assert scores.shape[1] == self.hparams.batch_size * 2
+        gts = torch.arange(scores.shape[0], dtype=int, device=scores.device).roll(self.hparams.batch_size, dims=0)
         return loss, scores, gts
 
     def training_step(
@@ -114,13 +119,14 @@ class SimCLRModule(LightningModule):
     def on_validation_epoch_end(self) -> None:
         acc = self.val_acc_top1.compute()  # get current val acc
         self.val_acc_best(acc)  # update best so far val acc
-        self.log("val/top1_best", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
+        self.log("val/best_top1", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
 
     def setup(self, stage: str) -> None:
         if stage == "fit" and self.hparams.compile:
             self.net = torch.compile(self.net)
 
     def configure_optimizers(self) -> Dict[str, Any]:
+        self.hparams.optimizer.keywords['lr'] = self.hparams.optimizer.keywords['lr'] * self.hparams.batch_size / 256
         optimizer = self.hparams.optimizer(params=self.trainer.model.parameters())
         if self.hparams.scheduler is not None:
             scheduler = self.hparams.scheduler(optimizer=optimizer)

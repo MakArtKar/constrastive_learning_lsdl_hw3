@@ -3,7 +3,10 @@ defaults:
 
 _target_: src.data.stl10_unlabeled_datamodule.STL10UnlabeledDataModule
 data_dir: data/stl10
-batch_size: 128 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+batch_size: 2048 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
 train_val_test_split: [0.8, 0.1, 0.1]
-num_workers: 32
-pin_memory: False
+dataloader_kwargs:
+  num_workers: 12
+  pin_memory: False
+  prefetch_factor: 4
+  persistent_workers: True

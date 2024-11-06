@@ -16,11 +16,14 @@ tags: ["stl10", "resnet18", "sim_clr"]
 seed: 12345
 
 trainer:
-  max_epochs: 200
+  max_epochs: 500
 
 data:
-  batch_size: 128
-  pin_memory: True
+  dataloader_kwargs:
+    pin_memory: True
+
+# model:
+#   compile: True
 
 logger:
   wandb:
@@ -34,3 +37,9 @@ callbacks:
   log_images:
     mean: [0.4914, 0.4822, 0.4465]
     std: [0.247, 0.243, 0.261]
+  
+  early_stopping:
+    monitor: val/best_top1
+  
+  model_checkpoint:
+    monitor: val/best_top1

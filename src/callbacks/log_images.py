@@ -22,6 +22,8 @@ class LogImagesCallback(pl.Callback):
         return images * self.std + self.mean
 
     def log_images(self, trainer, pl_module, dataloader, stage):
+        if trainer.logger is None:
+            return
         # Fetch a batch of images and labels
         images_list, labels = next(iter(dataloader))
         if isinstance(images_list, torch.Tensor):
