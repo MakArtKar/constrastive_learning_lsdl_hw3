@@ -7,6 +7,8 @@ from lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.datasets import STL10
 
+from src.transforms import DuplicateTransform
+
 
 class STL10UnlabeledDataModule(LightningDataModule):
 
@@ -24,7 +26,10 @@ class STL10UnlabeledDataModule(LightningDataModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        self.train_transform = lambda image: train_transform(image=np.array(image))['image'] if train_transform else image
+        if train_transform:
+            self.train_transform = DuplicateTransform(train_transform)
+        else:
+            self.train_transform = None
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None

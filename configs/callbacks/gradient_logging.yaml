@@ -1,0 +1,2 @@
+gradient_logging:
+  _target_: src.callbacks.gradient_logging.GradientLoggingCallback

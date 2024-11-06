@@ -1,0 +1,21 @@
+_target_: kornia.augmentation.container.AugmentationSequential
+_args_:
+  - _target_: kornia.augmentation.RandomHorizontalFlip
+  # - _target_: kornia.augmentation.RandomResizedCrop
+  #   size: ${eval:'(96, 96)'}
+  #   p: 1
+  # - _target_: kornia.augmentation.ColorJitter
+  #   brightness: 0.8
+  #   contrast: 0.8
+  #   saturation: 0.8
+  #   hue: 0.2
+  #   p: 0.8
+  - _target_: kornia.augmentation.RandomGrayscale
+    p: 0.2
+  - _target_: kornia.augmentation.RandomGaussianBlur
+    kernel_size: [7, 7]
+    sigma: [0.1, 0.2]
+    p: 0.5
+  # - _target_: kornia.augmentation.Normalize
+  #   mean: ${eval:'[0.4914, 0.4822, 0.4465]'}
+  #   std: ${eval:'[0.247, 0.243, 0.261]'}

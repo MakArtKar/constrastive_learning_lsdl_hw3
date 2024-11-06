@@ -1,4 +1,5 @@
 import albumentations as A
+import numpy as np
 
 
 class DuplicateTransform:
@@ -6,4 +7,5 @@ class DuplicateTransform:
         self.transform = transform
 
     def __call__(self, image, **kwargs):
-        return {'image': [self.transform(image=image)['image'], self.transform(image=image)['image']]}
+        image = np.array(image, dtype=np.uint8)
+        return [self.transform(image=image)['image'], self.transform(image=image)['image']]

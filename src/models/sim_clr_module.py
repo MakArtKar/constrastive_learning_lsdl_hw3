@@ -19,6 +19,7 @@ class SimCLRModule(LightningModule):
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
         compile: bool,
+        gpu_train_transform = None,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(logger=False)
@@ -61,6 +62,8 @@ class SimCLRModule(LightningModule):
     ) -> torch.tensor:
         (imgs1, imgs2), _ = batch
         x = torch.cat([imgs1, imgs2], dim=0)
+        if self.hparams.gpu_train_transform is not None:
+            x = self.hparams.gpu_train_transform(x)
         feats = self.forward(x)
         loss = self.criterion(feats)
 

@@ -5,6 +5,7 @@ defaults:
   - rich_progress_bar
   - learning_rate_monitor
   - log_images
+  - gradient_logging
   - _self_
 
 model_checkpoint:

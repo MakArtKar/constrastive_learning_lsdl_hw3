@@ -34,6 +34,9 @@ class LogImagesCallback(pl.Callback):
             # Move images to the appropriate device
             images = images.to(pl_module.device)
 
+            if hasattr(pl_module.hparams, 'gpu_train_transform'):
+                images = pl_module.hparams.gpu_train_transform(images)
+
             # Forward pass to get predictions if model is in eval mode
             pl_module.eval()
             with torch.no_grad():

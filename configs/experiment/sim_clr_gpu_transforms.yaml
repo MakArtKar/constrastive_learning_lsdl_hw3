@@ -1,0 +1,10 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - _self_
+  - sim_clr
+  - /data/transforms@model.gpu_train_transform: simclr_gpu_transforms.yaml
+  - override /data/transforms@data.train_transform: simclr_cpu_transforms.yaml

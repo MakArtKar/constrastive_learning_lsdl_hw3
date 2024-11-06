@@ -1,6 +1,6 @@
 defaults:
   - criterion: simclr.yaml
-  - net: resnet18
+  - net: resnet18.yaml
 
 _target_: src.models.sim_clr_module.SimCLRModule
 
