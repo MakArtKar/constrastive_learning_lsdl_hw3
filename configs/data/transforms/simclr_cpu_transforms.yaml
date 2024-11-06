@@ -13,7 +13,7 @@ transforms:
   # - _target_: albumentations.ToGray
   #   p: 0.2
   # - _target_: albumentations.GaussianBlur
-  #   blur_limit: [3, 7]
+  #   blur_limit: [11, 11]
   #   sigma_limit: [0.1, 0.2]
   #   p: 0.5
   - _target_: albumentations.Normalize

@@ -13,7 +13,7 @@ _args_:
   - _target_: kornia.augmentation.RandomGrayscale
     p: 0.2
   - _target_: kornia.augmentation.RandomGaussianBlur
-    kernel_size: [7, 7]
+    kernel_size: [11, 11]
     sigma: [0.1, 0.2]
     p: 0.5
   # - _target_: kornia.augmentation.Normalize
