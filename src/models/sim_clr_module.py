@@ -8,6 +8,7 @@ from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
 
 from src.losses.sim_clr_loss import SimCLRLoss
+from src.metrics.top_k_sim_accuracy import TopKSimAccuracy
 
 
 class SimCLRModule(LightningModule):
@@ -15,7 +16,6 @@ class SimCLRModule(LightningModule):
         self,
         net: torch.nn.Module,
         criterion: torch.nn.Module,
-        batch_size: int,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
         compile: bool,
@@ -34,12 +34,12 @@ class SimCLRModule(LightningModule):
 
         self.criterion = criterion
 
-        self.train_acc_top1 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=1)
-        self.train_acc_top5 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=5)
-        self.val_acc_top1 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=1)
-        self.val_acc_top5 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=5)
-        self.test_acc_top1 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=1)
-        self.test_acc_top5 = Accuracy(task="multiclass", num_classes=batch_size * 2, top_k=5)
+        self.train_acc_top1 = TopKSimAccuracy(top_k=1)
+        self.train_acc_top5 = TopKSimAccuracy(top_k=5)
+        self.val_acc_top1 = TopKSimAccuracy(top_k=1)
+        self.val_acc_top5 = TopKSimAccuracy(top_k=5)
+        self.test_acc_top1 = TopKSimAccuracy(top_k=1)
+        self.test_acc_top5 = TopKSimAccuracy(top_k=5)
 
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
@@ -66,56 +66,50 @@ class SimCLRModule(LightningModule):
             x = self.hparams.gpu_train_transform(x)
         feats = self.forward(x)
         loss = self.criterion(feats)
-
-        scores = -self.get_sim_matrix(feats)
-        if scores.shape[1] < self.hparams.batch_size * 2:  # last batch
-            scores = torch.cat([scores, -torch.ones(scores.shape[0], self.hparams.batch_size * 2 - scores.shape[1], device=scores.device) * torch.inf], dim=1)
-        assert scores.shape[1] == self.hparams.batch_size * 2
-        gts = torch.arange(scores.shape[0], dtype=int, device=scores.device).roll(self.hparams.batch_size, dims=0)
-        return loss, scores, gts
+        return loss, feats
 
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, scores, gts = self.model_step(batch)
+        loss, feats = self.model_step(batch)
 
         self.train_loss(loss)
         self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
 
-        self.train_acc_top1(scores, gts)
+        self.train_acc_top1(feats)
         self.log(f"train/acc_top1", self.train_acc_top1, on_step=False, on_epoch=True, prog_bar=True)
 
-        self.train_acc_top5(scores, gts)
+        self.train_acc_top5(feats)
         self.log(f"train/acc_top5", self.train_acc_top5, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, scores, gts = self.model_step(batch)
+        loss, feats = self.model_step(batch)
 
         self.val_loss(loss)
         self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
 
-        self.val_acc_top1(scores, gts)
+        self.val_acc_top1(feats)
         self.log(f"val/acc_top1", self.val_acc_top1, on_step=False, on_epoch=True, prog_bar=True)
 
-        self.val_acc_top5(scores, gts)
+        self.val_acc_top5(feats)
         self.log(f"val/acc_top5", self.val_acc_top5, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
     def test_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, scores, gts = self.model_step(batch)
+        loss, feats = self.model_step(batch)
 
         self.test_loss(loss)
         self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
 
-        self.test_acc_top1(scores, gts)
+        self.test_acc_top1(feats)
         self.log(f"test/acc_top1", self.test_acc_top1, on_step=False, on_epoch=True, prog_bar=True)
 
-        self.test_acc_top5(scores, gts)
+        self.test_acc_top5(feats)
         self.log(f"test/acc_top5", self.test_acc_top5, on_step=False, on_epoch=True, prog_bar=True)
         return loss
 
@@ -129,7 +123,6 @@ class SimCLRModule(LightningModule):
             self.net = torch.compile(self.net)
 
     def configure_optimizers(self) -> Dict[str, Any]:
-        self.hparams.optimizer.keywords['lr'] = self.hparams.optimizer.keywords['lr'] * self.hparams.batch_size / 256
         optimizer = self.hparams.optimizer(params=self.trainer.model.parameters())
         if self.hparams.scheduler is not None:
             scheduler = self.hparams.scheduler(optimizer=optimizer)

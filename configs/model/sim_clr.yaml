@@ -4,15 +4,13 @@ defaults:
 
 _target_: src.models.sim_clr_module.SimCLRModule
 
-batch_size: ${data.batch_size}
-
 net:
   num_classes: 512
 
 optimizer:
   _target_: pl_bolts.optimizers.LARS
   _partial_: true
-  lr: 0.3 # final_lr = lr * batch_size / 256
+  lr: ${eval:'0.3 * ${data.batch_size} / 256'}
   momentum: 0.9
   weight_decay: 1e-6
 
