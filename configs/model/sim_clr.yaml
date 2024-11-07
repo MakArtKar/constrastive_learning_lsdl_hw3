@@ -1,11 +1,8 @@
 defaults:
   - criterion: simclr.yaml
-  - net: resnet18.yaml
+  - net: resnet18_with_head.yaml
 
 _target_: src.models.sim_clr_module.SimCLRModule
-
-net:
-  num_classes: 512
 
 optimizer:
   _target_: pl_bolts.optimizers.LARS

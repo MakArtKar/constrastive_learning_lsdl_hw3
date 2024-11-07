@@ -20,11 +20,6 @@ class SimCLRModule(LightningModule):
         super().__init__()
         self.save_hyperparameters(logger=False)
 
-        net.fc = torch.nn.Sequential(
-            net.fc,
-            torch.nn.ReLU(),
-            torch.nn.Linear(net.fc.out_features, net.fc.out_features // 4)
-        )
         self.net = net.to(memory_format=torch.channels_last)
 
         self.criterion = criterion
