@@ -2,7 +2,7 @@ from typing import Any, Dict, Tuple
 
 import torch
 from lightning import LightningModule
-from torchmetrics import MaxMetric, MeanMetric
+from torchmetrics import Metric, MaxMetric
 
 from src.metrics.top_k_sim_accuracy import TopKSimAccuracy
 
@@ -14,6 +14,8 @@ class SimCLRModule(LightningModule):
         criterion: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
+        losses: Metric,
+        metrics: Metric,
         compile: bool,
         gpu_train_transform = None,
     ) -> None:
@@ -23,9 +25,9 @@ class SimCLRModule(LightningModule):
         self.net = net.to(memory_format=torch.channels_last)
 
         self.criterion = criterion
+        self.losses = losses
+        self.metrics = metrics
 
-        self.setup_metrics()
-        self.setup_losses()
         self.val_acc_best = MaxMetric()
 
     def setup_metrics(self):
@@ -80,25 +82,22 @@ class SimCLRModule(LightningModule):
             metric(feats)
             self.log(f"{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
 
-        return loss, feats
+        return loss
 
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, feats = self.model_step(batch, 'train')
-        return loss
+        return self.model_step(batch, 'train')
 
     def validation_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, feats = self.model_step(batch, 'val')
-        return loss
+        return self.model_step(batch, 'val')
 
     def test_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, feats = self.model_step(batch, 'test')
-        return loss
+        return self.model_step(batch, 'test')
 
     def on_validation_epoch_end(self) -> None:
         acc = self.metrics['val_mode']['acc_top1'].compute()  # get current val acc

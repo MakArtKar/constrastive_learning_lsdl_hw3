@@ -1,6 +1,8 @@
 defaults:
   - criterion: simclr.yaml
   - net: resnet18_with_head.yaml
+  - losses: default
+  - metrics: sim_clr
 
 _target_: src.models.sim_clr_module.SimCLRModule
 

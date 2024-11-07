@@ -1,5 +1,7 @@
 defaults:
   - net: simple_dense_net
+  - losses: default
+  - metrics: mnist
 
 _target_: src.models.mnist_module.MNISTLitModule
 

@@ -1,0 +1,23 @@
+_target_: torch.nn.ModuleDict
+modules:
+  train_mode:
+    _target_: torch.nn.ModuleDict
+    modules:
+      acc:
+        _target_: torchmetrics.Accuracy
+        task: multiclass
+        num_classes: ${num_classes}
+  val_mode:
+    _target_: torch.nn.ModuleDict
+    modules:
+      acc:
+        _target_: torchmetrics.Accuracy
+        task: multiclass
+        num_classes: ${num_classes}
+  test_mode:
+    _target_: torch.nn.ModuleDict
+    modules:
+      acc:
+        _target_: torchmetrics.Accuracy
+        task: multiclass
+        num_classes: ${num_classes}

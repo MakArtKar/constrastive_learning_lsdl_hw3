@@ -2,7 +2,7 @@ from typing import Any, Dict, Tuple
 
 import torch
 from lightning import LightningModule
-from torchmetrics import MaxMetric, MeanMetric
+from torchmetrics import Metric, MaxMetric
 from torchmetrics.classification.accuracy import Accuracy
 
 
@@ -44,6 +44,8 @@ class MNISTLitModule(LightningModule):
         net: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
+        losses: Metric,
+        metrics: Metric,
         compile: bool,
     ) -> None:
         """Initialize a `MNISTLitModule`.
@@ -63,18 +65,11 @@ class MNISTLitModule(LightningModule):
         # loss function
         self.criterion = torch.nn.CrossEntropyLoss()
 
-        self.setup_losses()
-        self.setup_metrics()
+        self.losses = losses
+        self.metrics = metrics
 
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
-
-    def setup_losses(self):
-        self.losses = torch.nn.ModuleDict({
-            'train_mode': MeanMetric(),
-            'val_mode': MeanMetric(),
-            'test_mode': MeanMetric(),
-        })
 
     def setup_metrics(self):
         metrics_dict = {}
@@ -125,7 +120,7 @@ class MNISTLitModule(LightningModule):
             metric(preds, y)
             self.log(f"{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
 
-        return loss, preds, y
+        return loss
 
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
@@ -137,8 +132,7 @@ class MNISTLitModule(LightningModule):
         :param batch_idx: The index of the current batch.
         :return: A tensor of losses between model predictions and targets.
         """
-        loss, preds, targets = self.model_step(batch, 'train')
-        return loss
+        return self.model_step(batch, 'train')
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
@@ -151,8 +145,7 @@ class MNISTLitModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch, 'val')
-        return loss
+        return self.model_step(batch, 'val')
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -169,8 +162,7 @@ class MNISTLitModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch, 'test')
-        return loss
+        return self.model_step(batch, 'test')
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""

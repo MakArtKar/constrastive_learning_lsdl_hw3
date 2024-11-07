@@ -1,5 +1,7 @@
 defaults:
   - net: resnet18
+  - losses: default
+  - metrics: mnist
 
 _target_: src.models.mnist_module.MNISTLitModule
 
