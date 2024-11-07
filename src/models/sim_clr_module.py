@@ -1,13 +1,9 @@
-from collections import defaultdict
-from typing import Tuple, Dict, Any
+from typing import Any, Dict, Tuple
 
 import torch
-import torch.nn.functional as F
 from lightning import LightningModule
 from torchmetrics import MaxMetric, MeanMetric
-from torchmetrics.classification.accuracy import Accuracy
 
-from src.losses.sim_clr_loss import SimCLRLoss
 from src.metrics.top_k_sim_accuracy import TopKSimAccuracy
 
 
@@ -30,26 +26,40 @@ class SimCLRModule(LightningModule):
             torch.nn.Linear(net.fc.out_features, net.fc.out_features // 4)
         )
         self.net = net.to(memory_format=torch.channels_last)
-        # self.net = net
 
         self.criterion = criterion
 
-        self.train_acc_top1 = TopKSimAccuracy(top_k=1)
-        self.train_acc_top5 = TopKSimAccuracy(top_k=5)
-        self.val_acc_top1 = TopKSimAccuracy(top_k=1)
-        self.val_acc_top5 = TopKSimAccuracy(top_k=5)
-        self.test_acc_top1 = TopKSimAccuracy(top_k=1)
-        self.test_acc_top5 = TopKSimAccuracy(top_k=5)
-
-        self.train_loss = MeanMetric()
-        self.val_loss = MeanMetric()
-        self.test_loss = MeanMetric()
-
+        self.setup_metrics()
+        self.setup_losses()
         self.val_acc_best = MaxMetric()
+
+    def setup_metrics(self):
+        metrics_dict = {}
+        for mode in ('train', 'val', 'test'):
+            metrics_dict[f'{mode}_mode'] = torch.nn.ModuleDict({
+                'acc_top1': TopKSimAccuracy(top_k=1),
+                'acc_top5': TopKSimAccuracy(top_k=5),
+            })
+        self.metrics = torch.nn.ModuleDict(metrics_dict)
+
+    def setup_losses(self):
+        self.losses = torch.nn.ModuleDict({
+            'train_mode': MeanMetric(),
+            'val_mode': MeanMetric(),
+            'test_mode': MeanMetric(),
+        })
+
+    def on_train_start(self) -> None:
+        """Lightning hook that is called when training begins."""
+        # by default lightning executes validation step sanity checks before training starts,
+        # so it's worth to make sure validation metrics don't store results from these checks
+        self.losses['val_mode'].reset()
+        for _, metric in self.metrics['val_mode'].items():
+            metric.reset()
+        self.val_acc_best.reset()
 
     def forward(self, x):
         return self.net(x.to(memory_format=torch.channels_last))
-        # return self.net(x)
 
     def get_sim_matrix(self, feats):
         sim = F.cosine_similarity(feats.unsqueeze(0), feats.unsqueeze(1), dim=-1)
@@ -58,63 +68,45 @@ class SimCLRModule(LightningModule):
         return masked_sim
 
     def model_step(
-        self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor],
+        self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
     ) -> torch.tensor:
         (imgs1, imgs2), _ = batch
         x = torch.cat([imgs1, imgs2], dim=0)
         if self.hparams.gpu_train_transform is not None:
             x = self.hparams.gpu_train_transform(x)
+
         feats = self.forward(x)
         loss = self.criterion(feats)
+
+        self.losses[f'{mode}_mode'](loss)
+        self.log(f"{mode}/loss", self.losses[f'{mode}_mode'], on_step=False, on_epoch=True, prog_bar=True)
+
+        for metric_name, metric in self.metrics[f'{mode}_mode'].items():
+            metric(feats)
+            self.log(f"{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
+
         return loss, feats
 
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, feats = self.model_step(batch)
-
-        self.train_loss(loss)
-        self.log("train/loss", self.train_loss, on_step=False, on_epoch=True, prog_bar=True)
-
-        self.train_acc_top1(feats)
-        self.log(f"train/acc_top1", self.train_acc_top1, on_step=False, on_epoch=True, prog_bar=True)
-
-        self.train_acc_top5(feats)
-        self.log(f"train/acc_top5", self.train_acc_top5, on_step=False, on_epoch=True, prog_bar=True)
+        loss, feats = self.model_step(batch, 'train')
         return loss
 
     def validation_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, feats = self.model_step(batch)
-
-        self.val_loss(loss)
-        self.log("val/loss", self.val_loss, on_step=False, on_epoch=True, prog_bar=True)
-
-        self.val_acc_top1(feats)
-        self.log(f"val/acc_top1", self.val_acc_top1, on_step=False, on_epoch=True, prog_bar=True)
-
-        self.val_acc_top5(feats)
-        self.log(f"val/acc_top5", self.val_acc_top5, on_step=False, on_epoch=True, prog_bar=True)
+        loss, feats = self.model_step(batch, 'val')
         return loss
 
     def test_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
-        loss, feats = self.model_step(batch)
-
-        self.test_loss(loss)
-        self.log("test/loss", self.test_loss, on_step=False, on_epoch=True, prog_bar=True)
-
-        self.test_acc_top1(feats)
-        self.log(f"test/acc_top1", self.test_acc_top1, on_step=False, on_epoch=True, prog_bar=True)
-
-        self.test_acc_top5(feats)
-        self.log(f"test/acc_top5", self.test_acc_top5, on_step=False, on_epoch=True, prog_bar=True)
+        loss, feats = self.model_step(batch, 'test')
         return loss
 
     def on_validation_epoch_end(self) -> None:
-        acc = self.val_acc_top1.compute()  # get current val acc
+        acc = self.metrics['val_mode']['acc_top1'].compute()  # get current val acc
         self.val_acc_best(acc)  # update best so far val acc
         self.log("val/best_top1", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
 
@@ -136,3 +128,4 @@ class SimCLRModule(LightningModule):
                 },
             }
         return {"optimizer": optimizer}
+
