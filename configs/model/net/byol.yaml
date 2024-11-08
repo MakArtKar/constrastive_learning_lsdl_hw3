@@ -1,9 +1,9 @@
 defaults:
-  - .@backbone.net: resnet18
+  - .@encoder.net: resnet18
 
 _target_: src.models.components.byol.BYOL
 
-backbone:
+encoder:
   _target_: src.models.components.wrappers.ModelConstructor
   modules:
     fc:
