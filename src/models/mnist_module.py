@@ -71,14 +71,6 @@ class MNISTLitModule(LightningModule):
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
 
-    def setup_metrics(self):
-        metrics_dict = {}
-        for mode in ('train', 'val', 'test'):
-            metrics_dict[f'{mode}_mode'] = torch.nn.ModuleDict({
-                'acc': Accuracy(task="multiclass", num_classes=10),
-            })
-        self.metrics = torch.nn.ModuleDict(metrics_dict)
-
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
         # by default lightning executes validation step sanity checks before training starts,

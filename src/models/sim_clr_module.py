@@ -41,22 +41,6 @@ class SimCLRModule(LightningModule):
 
         self.current_dataloader_idx = None
 
-    def setup_metrics(self):
-        metrics_dict = {}
-        for mode in ('train', 'val', 'test'):
-            metrics_dict[f'{mode}_mode'] = torch.nn.ModuleDict({
-                'acc_top1': TopKSimAccuracy(top_k=1),
-                'acc_top5': TopKSimAccuracy(top_k=5),
-            })
-        self.metrics = torch.nn.ModuleDict(metrics_dict)
-
-    def setup_losses(self):
-        self.losses = torch.nn.ModuleDict({
-            'train_mode': MeanMetric(),
-            'val_mode': MeanMetric(),
-            'test_mode': MeanMetric(),
-        })
-
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
         # by default lightning executes validation step sanity checks before training starts,
