@@ -6,22 +6,24 @@
 defaults:
   - _self_
   - override /data: sim_clr
-  - override /model: sim_clr
+  - override /model: byol
 
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["stl10", "resnet18", "sim_clr"]
+tags: ["stl10", "resnet18", "byol"]
 
 seed: 12345
 
-feat_dim: 128
+feat_dim: 512
 num_classes: 10
+dataset_length: 100000
 
 trainer:
   max_epochs: 500
 
 data:
+  batch_size: 1024
   dataloader_kwargs:
     pin_memory: True
 
@@ -31,10 +33,10 @@ data:
 logger:
   wandb:
     tags: ${tags}
-    group: "sim_clr"
-    name: sim_clr
+    group: "byol"
+    name: byol
   aim:
-    experiment: "sim_clr"
+    experiment: "byol"
 
 callbacks:
   log_images:
