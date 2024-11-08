@@ -7,7 +7,7 @@ from torchmetrics.classification.accuracy import Accuracy
 from src.models.base_module import BaseModule
 
 
-class MNISTLitModule(BaseModule):
+class BaselineLitModule(BaseModule):
     """Example of a `LightningModule` for MNIST classification.
 
     A `LightningModule` implements 8 key methods:
