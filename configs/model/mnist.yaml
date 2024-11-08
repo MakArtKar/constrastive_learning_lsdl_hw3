@@ -1,5 +1,6 @@
 defaults:
   - net: simple_dense_net
+  - criterion: ce_loss
   - losses: default
   - metrics: mnist
 

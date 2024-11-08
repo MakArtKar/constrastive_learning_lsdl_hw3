@@ -1,5 +1,6 @@
 defaults:
   - net: resnet18
+  - criterion: ce_loss
   - losses: default
   - metrics: mnist
 
