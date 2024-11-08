@@ -18,6 +18,7 @@ class BaseModule(LightningModule):
         metrics: Metric,
         compile: bool,
         ignore: list = None,
+        val_best_name: str = 'acc',
     ) -> None:
         super().__init__()
 
@@ -61,14 +62,18 @@ class BaseModule(LightningModule):
         return self.net(x.to(memory_format=torch.channels_last))
 
     def logging_step(
-        self, mode: str, loss: torch.Tensor, *metric_args, **metric_kwargs
+        self, mode: str, loss: torch.Tensor, *metric_args,
+        prefix="", losses=None, metrics=None, **metric_kwargs
     ):
-        self.losses[f'{mode}_mode'](loss)
-        self.log(f"{mode}/loss", self.losses[f'{mode}_mode'], on_step=False, on_epoch=True, prog_bar=True)
+        losses = losses or self.losses
+        metrics = metrics or self.metrics
 
-        for metric_name, metric in self.metrics[f'{mode}_mode'].items():
+        losses[f'{mode}_mode'](loss)
+        self.log(f"{prefix}{mode}/loss", losses[f'{mode}_mode'], on_step=False, on_epoch=True, prog_bar=True)
+
+        for metric_name, metric in metrics[f'{mode}_mode'].items():
             metric(*metric_args, **metric_kwargs)
-            self.log(f"{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
+            self.log(f"{prefix}{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
 
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
@@ -97,11 +102,11 @@ class BaseModule(LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
-        acc = self.metrics['val_mode']['acc'].compute()  # get current val acc
+        acc = self.metrics['val_mode'][self.hparams.val_best_name].compute()  # get current val acc
         self.val_acc_best(acc)  # update best so far val acc
         # log `val_acc_best` as a value through `.compute()` method, instead of as a metric object
         # otherwise metric would be reset by lightning after each epoch
-        self.log("val/acc_best", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
+        self.log(f"val/best_{self.hparams.val_best_name}", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)
 
     def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
