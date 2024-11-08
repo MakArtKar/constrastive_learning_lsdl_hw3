@@ -26,6 +26,10 @@ class BYOLModule(LinearEvalModule):
             losses, metrics, compile, linear_eval_cfg, val_best_name='acc_top1',
         )
 
+    def log_z_std(self, z: torch.tensor, key: str) -> None:
+        std = torch.std(z, dim=0).mean()
+        self.log(key, std.item(), sync_dist=True, prog_bar=True)
+
     def unsupervised_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
     ) -> torch.tensor:
@@ -36,6 +40,8 @@ class BYOLModule(LinearEvalModule):
             y_ema, z_ema = self.net.forward(x, use_momentum=True)
         q1, q2 = q[:imgs1.size(0)], q[imgs1.size(0):]
         z_ema1, z_ema2 = z_ema[:imgs1.size(0)], z_ema[imgs1.size(0):]
+        self.log_z_std(z, 'z_std')
+        self.log_z_std(z_ema, 'z_ema_std')
         return [q1, z_ema2, q2, z_ema1], [y, y_ema]
 
     def linear_eval_model_step(
