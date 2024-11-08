@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.datasets import STL10
 
 from src.transforms import DuplicateTransform
+from src.data.loader.sequential_data_loader import SequentialDataLoader
 
 
 class STL10UnlabeledDataModule(LightningDataModule):
@@ -19,13 +20,13 @@ class STL10UnlabeledDataModule(LightningDataModule):
         train_transform = None,
         batch_size: int = 64,
         dataloader_kwargs: dict = {},
-        linear_eval_cfg: Optional[Dict[str, Any]] = None,
+        linear_eval_datamodule: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__()
 
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
-        self.save_hyperparameters(logger=False)
+        self.save_hyperparameters(logger=False, ignore=['train_transform'])
 
         if train_transform:
             self.train_transform = DuplicateTransform(train_transform)
@@ -40,9 +41,8 @@ class STL10UnlabeledDataModule(LightningDataModule):
 
     def prepare_data(self) -> None:
         if not os.path.isdir(os.path.join(self.hparams.data_dir, 'stl10_binary')):
-            if self.hparams.linear_eval_cfg is not None:
-                STL10(self.hparams.data_dir, split='train', download=True)
-                STL10(self.hparams.data_dir, split='test', download=True)
+            if self.hparams.linear_eval_datamodule is not None:
+                self.hparams.linear_eval_datamodule.prepare_data()
             STL10(self.hparams.data_dir, split='unlabeled', download=True)
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -54,13 +54,6 @@ class STL10UnlabeledDataModule(LightningDataModule):
                 )
             self.batch_size_per_device = self.hparams.batch_size // self.trainer.world_size
 
-            if self.hparams.linear_eval_cfg is not None:
-                if self.hparams.linear_eval_cfg.batch_size % self.trainer.world_size != 0:
-                    raise RuntimeError(
-                        f"Batch size ({self.hparams.batch_size}) is not divisible by the number of devices ({self.trainer.world_size})."
-                    )
-                self.hparams.linear_eval_cfg.batch_size_per_device = self.hparams.linear_eval_cfg.batch_size // self.trainer.world_size
-
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             dataset = STL10(self.hparams.data_dir, split='unlabeled', transform=self.train_transform)
@@ -69,20 +62,8 @@ class STL10UnlabeledDataModule(LightningDataModule):
                 lengths=self.hparams.train_val_test_split,
                 generator=torch.Generator().manual_seed(42),
             )
-            if self.hparams.linear_eval_cfg is not None:
-                trainset = STL10(self.hparams.data_dir, split='train', transform=self.linear_eval_cfg.train_transform)
-                valset = STL10(self.hparams.data_dir, split='train', transform=self.linear_eval_cfg.val_transform)
-                self.linear_eval_data_train, _ = random_split(
-                    dataset=trainset,
-                    lengths=self.hparams.linear_eval_cfg.train_val_split,
-                    generator=torch.Generator().manual_seed(42),
-                )
-                _, self.linear_eval_data_val = random_split(
-                    dataset=valset,
-                    lengths=self.hparams.linear_eval_cfg.train_val_split,
-                    generator=torch.Generator().manual_seed(42),
-                )
-                self.linear_eval_data_test = STL10(self.hparams.data_dir, split='test', transform=self.linear_eval_cfg.val_transform)
+            if self.hparams.linear_eval_datamodule:
+                self.hparams.linear_eval_datamodule.setup(stage)
 
     def train_dataloader(self) -> DataLoader[Any]:
         train_dataloader = DataLoader(
@@ -91,16 +72,9 @@ class STL10UnlabeledDataModule(LightningDataModule):
             shuffle=True,
             **self.hparams.dataloader_kwargs
         )
-        if self.hparams.linear_eval_cfg is None:
+        if self.hparams.linear_eval_datamodule is None:
             return train_dataloader
-
-        linear_eval_train_dataloader = DataLoader(
-            dataset=self.linear_eval_data_train,
-            batch_size=self.hparams.linear_eval_cfg.batch_size_per_device,
-            shuffle=True,
-            **self.hparams.linear_eval_cfg.dataloader_kwargs
-        )
-        return SequentialDataLoader([train_dataloader, linear_eval_train_dataloader])
+        return SequentialDataLoader([train_dataloader, self.hparams.linear_eval_datamodule.train_dataloader()])
 
     def val_dataloader(self) -> DataLoader[Any]:
         val_dataloader = DataLoader(
@@ -109,16 +83,9 @@ class STL10UnlabeledDataModule(LightningDataModule):
             shuffle=False,
             **self.hparams.dataloader_kwargs
         )
-        if self.hparams.linear_eval_cfg is None:
+        if self.hparams.linear_eval_datamodule is None:
             return val_dataloader
-
-        linear_eval_val_dataloader = DataLoader(
-            dataset=self.linear_eval_data_val,
-            batch_size=self.hparams.linear_eval_cfg.batch_size_per_device,
-            shuffle=True,
-            **self.hparams.linear_eval_cfg.dataloader_kwargs
-        )
-        return SequentialDataLoader([val_dataloader, linear_eval_val_dataloader])
+        return SequentialDataLoader([val_dataloader, self.hparams.linear_eval_datamodule.val_dataloader()])
 
     def test_dataloader(self) -> DataLoader[Any]:
         test_dataloader = DataLoader(
@@ -127,16 +94,9 @@ class STL10UnlabeledDataModule(LightningDataModule):
             shuffle=False,
             **self.hparams.dataloader_kwargs
         )
-        if self.hparams.linear_eval_cfg is None:
+        if self.hparams.linear_eval_datamodule is None:
             return test_dataloader
-
-        linear_eval_test_dataloader = DataLoader(
-            dataset=self.linear_eval_data_test,
-            batch_size=self.hparams.linear_eval_cfg.batch_size_per_device,
-            shuffle=True,
-            **self.hparams.linear_eval_cfg.dataloader_kwargs
-        )
-        return SequentialDataLoader([test_dataloader, linear_eval_test_dataloader])
+        return SequentialDataLoader([test_dataloader, self.hparams.linear_eval_datamodule.test_dataloader()])
 
     def teardown(self, stage: Optional[str] = None) -> None:
         pass

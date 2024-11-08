@@ -8,6 +8,14 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.datasets import STL10
 
 
+class Alb2TorchvisionWrapper:
+    def __init__(self, alb_transform):
+        self._alb_transform = alb_transform
+
+    def __call__(self, image):
+        return self._alb_transform(image=np.array(image))['image']
+
+
 class STL10DataModule(LightningDataModule):
 
     def __init__(
@@ -26,8 +34,8 @@ class STL10DataModule(LightningDataModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        self.train_transform = lambda image: train_transform(image=np.array(image))['image'] if train_transform else image
-        self.val_transform = lambda image: val_transform(image=np.array(image))['image'] if val_transform else image
+        self.train_transform = Alb2TorchvisionWrapper(train_transform) if train_transform else None
+        self.val_transform = Alb2TorchvisionWrapper(val_transform) if val_transform else None
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None

@@ -1,5 +1,6 @@
 defaults:
   - transforms@train_transform: simclr_transforms
+  - .@linear_eval_datamodule: stl10
 
 _target_: src.data.stl10_unlabeled_datamodule.STL10UnlabeledDataModule
 data_dir: data/stl10
