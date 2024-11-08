@@ -39,13 +39,13 @@ class LinearEvalModule(BaseModule):
     @abstractmethod
     def unsupervised_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
-    ) -> torch.tensor:
+    ) -> Any:
         raise NotImplementedError()
 
     @abstractmethod
     def linear_eval_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
-    ) -> Tuple[torch.tensor, torch.tensor]:
+    ) -> Any:
         raise NotImplementedError()
 
     def reset_linear_eval_head(self, device) -> None:
@@ -60,12 +60,10 @@ class LinearEvalModule(BaseModule):
     def _linear_eval_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
     ) -> None:
-        x, y = self.linear_eval_model_step(batch, mode)
+        inputs, targets = self.linear_eval_model_step(batch, mode)
 
-        with torch.no_grad():
-            feats = self.forward(x)
-        logits = self.linear_eval_head(feats)
-        loss = self.linear_eval_criterion(logits, y)
+        logits = self.linear_eval_head(*inputs)
+        loss = self.linear_eval_criterion(logits, *targets)
         preds = torch.argmax(logits, dim=1)
 
         if mode == 'train':
@@ -74,7 +72,7 @@ class LinearEvalModule(BaseModule):
             self.linear_eval_optimizer.zero_grad()
 
         self.logging_step(
-            mode, loss, preds, y, prefix="linear_eval_",
+            mode, loss, preds, *targets, prefix="linear_eval_",
             losses=self.linear_eval_losses, metrics=self.linear_eval_metrics
         )
         return None
@@ -82,12 +80,12 @@ class LinearEvalModule(BaseModule):
     def _unsupervised_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
     ) -> torch.tensor:
-        x = self.unsupervised_model_step(batch, mode)
+        criterion_inputs, metrics_inputs = self.unsupervised_model_step(batch, mode)
 
-        feats = self.forward(x)
-        loss = self.criterion(feats)
+        loss = self.criterion(*criterion_inputs)
+        assert loss.numel() == 1, loss.numel()
 
-        self.logging_step(mode, loss, feats)
+        self.logging_step(mode, loss, *metrics_inputs)
         return loss
 
     def model_step(

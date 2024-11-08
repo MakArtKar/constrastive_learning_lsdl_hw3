@@ -71,9 +71,10 @@ class BaseModule(LightningModule):
         losses[f'{mode}_mode'](loss)
         self.log(f"{prefix}{mode}/loss", losses[f'{mode}_mode'], on_step=False, on_epoch=True, prog_bar=True)
 
-        for metric_name, metric in metrics[f'{mode}_mode'].items():
-            metric(*metric_args, **metric_kwargs)
-            self.log(f"{prefix}{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
+        if metrics is not None:
+            for metric_name, metric in metrics[f'{mode}_mode'].items():
+                metric(*metric_args, **metric_kwargs)
+                self.log(f"{prefix}{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
 
     def training_step(
         self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
@@ -142,7 +143,7 @@ class BaseModule(LightningModule):
 
         :return: A dict containing the configured optimizers and learning-rate schedulers to be used for training.
         """
-        optimizer = self.hparams.optimizer(params=self.trainer.model.parameters())
+        optimizer = self.hparams.optimizer(params=self.net.parameters())
         if self.hparams.scheduler is not None:
             scheduler = self.hparams.scheduler(optimizer=optimizer)
             return {
