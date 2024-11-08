@@ -35,6 +35,7 @@ class LinearEvalModule(BaseModule):
         self.linear_eval_metrics = linear_eval_cfg.metrics
 
         self.current_dataloader_idx = None
+        self.reset_linear_eval_head('cpu')
 
     @abstractmethod
     def unsupervised_model_step(
