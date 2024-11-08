@@ -1,0 +1,22 @@
+_target_: albumentations.Compose
+transforms:
+  # - _target_: albumentations.HorizontalFlip
+  - _target_: albumentations.RandomResizedCrop
+    size: [96, 96]
+    p: 1
+  - _target_: albumentations.ColorJitter
+    brightness: 0.8
+    contrast: 0.8
+    saturation: 0.8
+    hue: 0.2
+    p: 0.8
+  # - _target_: albumentations.ToGray
+  #   p: 0.2
+  # - _target_: albumentations.GaussianBlur
+  #   blur_limit: [11, 11]
+  #   sigma_limit: [0.1, 0.2]
+  #   p: 0.5
+  - _target_: albumentations.Normalize
+    mean: [0.4914, 0.4822, 0.4465]
+    std: [0.247, 0.243, 0.261]
+  - _target_: albumentations.pytorch.ToTensorV2

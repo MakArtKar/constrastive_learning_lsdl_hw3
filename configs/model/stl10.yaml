@@ -1,10 +1,12 @@
 defaults:
   - net: resnet18
+  - losses: default
+  - metrics: mnist
 
 _target_: src.models.mnist_module.MNISTLitModule
 
 net:
-  num_classes: 10
+  num_classes: ${num_classes}
 
 optimizer:
   _target_: torch.optim.SGD

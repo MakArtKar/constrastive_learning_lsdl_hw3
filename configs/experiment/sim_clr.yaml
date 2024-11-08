@@ -5,34 +5,44 @@
 
 defaults:
   - _self_
-  - override /data: stl10
-  - override /model: stl10
+  - override /data: sim_clr
+  - override /model: sim_clr
 
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["stl10", "resnet18"]
+tags: ["stl10", "resnet18", "sim_clr"]
 
 seed: 12345
 
-trainer:
-  max_epochs: 200
-
+feat_dim: 128
 num_classes: 10
 
+trainer:
+  max_epochs: 500
+
 data:
-  batch_size: 128
-  pin_memory: True
+  dataloader_kwargs:
+    pin_memory: True
+
+# model:
+#   compile: True
 
 logger:
   wandb:
     tags: ${tags}
-    group: "stl10"
-    name: stl10_baseline
+    group: "sim_clr"
+    name: sim_clr
   aim:
-    experiment: "stl10_baseline"
+    experiment: "sim_clr"
 
 callbacks:
   log_images:
     mean: [0.4914, 0.4822, 0.4465]
     std: [0.247, 0.243, 0.261]
+  
+  early_stopping:
+    monitor: val/best_top1
+  
+  model_checkpoint:
+    monitor: val/best_top1

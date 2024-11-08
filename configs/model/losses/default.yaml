@@ -1,0 +1,8 @@
+_target_: torch.nn.ModuleDict
+modules:
+  train_mode:
+    _target_: torchmetrics.MeanMetric
+  val_mode:
+    _target_: torchmetrics.MeanMetric
+  test_mode:
+    _target_: torchmetrics.MeanMetric

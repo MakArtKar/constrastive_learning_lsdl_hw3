@@ -1,0 +1,2 @@
+_target_: src.losses.sim_clr_loss.SimCLRLoss
+temperature: 0.1

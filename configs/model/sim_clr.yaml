@@ -1,0 +1,27 @@
+defaults:
+  - criterion: simclr.yaml
+  - net: resnet18_with_head.yaml
+  - losses: default
+  - metrics: sim_clr
+  - .@linear_eval_cfg: stl10
+
+_target_: src.models.sim_clr_module.SimCLRModule
+
+feat_dim: ${feat_dim}
+num_classes: ${num_classes}
+
+optimizer:
+  _target_: pl_bolts.optimizers.LARS
+  _partial_: true
+  lr: ${eval:'0.3 * ${data.batch_size} / 256'}
+  momentum: 0.9
+  weight_decay: 1e-6
+
+scheduler:
+  _target_: torchtune.modules.get_cosine_schedule_with_warmup
+  _partial_: True
+  num_warmup_steps: 10
+  num_training_steps: ${eval:'${trainer.max_epochs} - 10'}
+
+# compile model for faster training with pytorch 2.0
+compile: false

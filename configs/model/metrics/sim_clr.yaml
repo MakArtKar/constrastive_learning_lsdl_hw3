@@ -1,0 +1,29 @@
+_target_: torch.nn.ModuleDict
+modules:
+  train_mode:
+    _target_: torch.nn.ModuleDict
+    modules:
+      acc_top1:
+        _target_: src.metrics.top_k_sim_accuracy.TopKSimAccuracy
+        top_k: 1
+      acc_top5:
+        _target_: src.metrics.top_k_sim_accuracy.TopKSimAccuracy
+        top_k: 5
+  val_mode:
+    _target_: torch.nn.ModuleDict
+    modules:
+      acc_top1:
+        _target_: src.metrics.top_k_sim_accuracy.TopKSimAccuracy
+        top_k: 1
+      acc_top5:
+        _target_: src.metrics.top_k_sim_accuracy.TopKSimAccuracy
+        top_k: 5
+  test_mode:
+    _target_: torch.nn.ModuleDict
+    modules:
+      acc_top1:
+        _target_: src.metrics.top_k_sim_accuracy.TopKSimAccuracy
+        top_k: 1
+      acc_top5:
+        _target_: src.metrics.top_k_sim_accuracy.TopKSimAccuracy
+        top_k: 5
