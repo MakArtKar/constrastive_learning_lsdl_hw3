@@ -1,0 +1,31 @@
+defaults:
+  - .@backbone: resnet18_with_head
+
+_target_: src.models.components.byol.BYOL
+backbone:
+  modules:
+    fc:
+      _target_: torch.nn.Sequential
+      _args_:
+        - _target_: torch.nn.Linear
+          in_features: 512
+          out_features: 1024
+        - _target_: torch.nn.BatchNorm2d
+          num_features: 1024
+        - _target_: torch.nn.ReLU
+        - _target_: torch.nn.Linear
+          in_features: 1024
+          out_features: 256
+online_head:
+  _target_: torch.nn.Sequential
+  _args_:
+    - _target_: torch.nn.Linear
+      in_features: 256
+      out_features: 1024
+    - _target_: torch.nn.BatchNorm2d
+      num_features: 1024
+    - _target_: torch.nn.ReLU
+    - _target_: torch.nn.Linear
+      in_features: 1024
+      out_features: 256
+momentum: 0.996
