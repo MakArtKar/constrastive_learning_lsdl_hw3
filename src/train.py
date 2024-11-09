@@ -87,13 +87,18 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         log_hyperparameters(object_dict)
 
     if cfg.get("ckpt_path"):
-        ckpt_path = glob.glob(cfg.get("ckpt_path"))[0]
+        ckpt_paths = glob.glob(cfg.get("ckpt_path"))
+        if len(ckpt_paths) == 0:
+            raise ValueError(f"No ckpts found by regex '{cfg.get('ckpt_path')}'")
+        ckpt_path = ckpt_paths[0]
 
         # we want only encoder weights
         head = model.net.head
         model.net.head = torch.nn.Identity()
 
-        model.load_state_dict(torch.load(ckpt_path))
+        dct = torch.load(ckpt_path, weights_only=False)['state_dict']
+        dct = {key: value for key, value in dct.items() if not key.startswith('net.head') and not key.startswith('linear_eval')}
+        model.load_state_dict(dct)
 
         # return head
         model.net.head = head
