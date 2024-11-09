@@ -5,39 +5,32 @@
 
 defaults:
   - _self_
-
-seed: 12345
+  - override /data: cifar10
+  - override /model: stl10
 
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-num_classes:
-pretrained_experiment:
+tags: ["cifar10", "resnet18"]
 
-tags:
-  - lin_prob_${pretrained_experiment}
-  - resnet18
-
-model:
-  net:
-    freeze_encoder: True
-
-logger:
-  wandb:
-    tags: ${tags}
-    group: lin_prob
-    name: lin_prob_${pretrained_experiment}
-  aim:
-    experiment: lin_prob_${pretrained_experiment}
-
-ckpt_path: logs/report/runs/${pretrained_experiment}/checkpoints/epoch_*.ckpt
+seed: 12345
 
 trainer:
   max_epochs: 200
 
+num_classes: 10
+
 data:
   batch_size: 128
   pin_memory: True
+
+logger:
+  wandb:
+    tags: ${tags}
+    group: "cifar10"
+    name: cifar10_baseline
+  aim:
+    experiment: "cifar10_baseline"
 
 callbacks:
   log_images:

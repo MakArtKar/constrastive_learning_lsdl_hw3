@@ -1,26 +1,55 @@
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union, Callable, List
+from pathlib import Path
 
 import numpy as np
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
-from torchvision.datasets import STL10
+from torchvision.datasets import CIFAR10
 
 from src.utils import Alb2TorchvisionWrapper
 
 
-class STL10DataModule(LightningDataModule):
+class CIFAR10WithDroppedClasses(CIFAR10):
+    def __init__(
+        self,
+        root: Union[str, Path],
+        train: bool = True,
+        transform: Optional[Callable] = None,
+        target_transform: Optional[Callable] = None,
+        download: bool = False,
+        classes_to_drop: List[str] = None
+    ):
+        super().__init__(
+            root, train, transform, target_transform, download
+        )
+        classes_to_drop = classes_to_drop or []
+        self.classes_to_drop = classes_to_drop
+        classes = [class_ for class_ in self.classes if self.class_to_idx[class_] not in classes_to_drop]
+        class_to_idx = {class_: idx for idx, class_ in enumerate(classes)}
+
+        data, targets = [], []
+        for item, target in zip(self.data, self.targets):
+            if target not in self.classes_to_drop:
+                data.append(item)
+                targets.append(class_to_idx[self.classes[target]])
+        self.data, self.targets = data, targets
+        self.classes, self.class_to_idx = classes, class_to_idx
+
+
+class CIFAR10DataModule(LightningDataModule):
 
     def __init__(
         self,
-        data_dir: str = "data/stl10",
-        train_val_split: Tuple[int, int, int] = (0.8, 0.2),
+        data_dir: str = "data/cifar10",
+        train_val_split: Tuple[int, int, int] = (0.9, 0.1),
         train_transform = None,
         val_transform = None,
         batch_size: int = 64,
         num_workers: int = 0,
         pin_memory: bool = False,
+        classes_to_drop: List[str] = None,
     ) -> None:
         super().__init__()
 
@@ -39,13 +68,12 @@ class STL10DataModule(LightningDataModule):
 
     @property
     def num_classes(self) -> int:
-        return 10
+        return 10 - len(self.hparams.classes_to_drop)
 
     def prepare_data(self) -> None:
-        if not os.path.isdir(os.path.join(self.hparams.data_dir, 'stl10_binary')):
-            STL10(self.hparams.data_dir, split='train', download=True)
-            STL10(self.hparams.data_dir, split='test', download=True)
-            # STL10(self.hparams.data_dir, split='unlabeled', download=True)
+        if not os.path.isdir(os.path.join(self.hparams.data_dir, 'cifar-10-batches-py')):
+            CIFAR10WithDroppedClasses(self.hparams.data_dir, train=True, download=True, classes_to_drop=self.hparams.classes_to_drop)
+            CIFAR10WithDroppedClasses(self.hparams.data_dir, train=False, download=True, classes_to_drop=self.hparams.classes_to_drop)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # Divide batch size by the number of devices.
@@ -58,8 +86,8 @@ class STL10DataModule(LightningDataModule):
 
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            trainset = STL10(self.hparams.data_dir, split='train', transform=self.train_transform)
-            valset = STL10(self.hparams.data_dir, split='train', transform=self.val_transform)
+            trainset = CIFAR10WithDroppedClasses(self.hparams.data_dir, train=True, transform=self.train_transform, classes_to_drop=self.hparams.classes_to_drop)
+            valset = CIFAR10WithDroppedClasses(self.hparams.data_dir, train=True, transform=self.val_transform, classes_to_drop=self.hparams.classes_to_drop)
             self.data_train, _ = random_split(
                 dataset=trainset,
                 lengths=self.hparams.train_val_split,
@@ -70,7 +98,7 @@ class STL10DataModule(LightningDataModule):
                 lengths=self.hparams.train_val_split,
                 generator=torch.Generator().manual_seed(42),
             )
-            self.data_test = STL10(self.hparams.data_dir, split='test', transform=self.val_transform)
+            self.data_test = CIFAR10WithDroppedClasses(self.hparams.data_dir, train=False, transform=self.val_transform, classes_to_drop=self.hparams.classes_to_drop)
 
     def train_dataloader(self) -> DataLoader[Any]:
         return DataLoader(

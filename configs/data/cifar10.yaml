@@ -1,0 +1,12 @@
+defaults:
+  - transforms@train_transform: train_default
+  - transforms@val_transform: val_default
+
+_target_: src.data.cifar10_datamodule.CIFAR10DataModule
+data_dir: data/cifar10
+batch_size: 128 # Needs to be divisible by the number of devices (e.g., if in a distributed setup)
+train_val_split: [0.9, 0.1]
+num_workers: 32
+pin_memory: False
+classes_to_drop:
+  - frog
