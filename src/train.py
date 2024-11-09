@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Tuple
 
+import glob
 import hydra
 import lightning as L
 import rootutils
@@ -85,9 +86,21 @@ def train(cfg: DictConfig) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         log.info("Logging hyperparameters!")
         log_hyperparameters(object_dict)
 
+    if cfg.get("ckpt_path"):
+        ckpt_path = glob.glob(cfg.get("ckpt_path"))[0]
+
+        # we want only encoder weights
+        head = model.net.head
+        model.net.head = torch.nn.Identity()
+
+        model.load_state_dict(torch.load(ckpt_path))
+
+        # return head
+        model.net.head = head
+
     if cfg.get("train"):
         log.info("Starting training!")
-        trainer.fit(model=model, datamodule=datamodule, ckpt_path=cfg.get("ckpt_path"))
+        trainer.fit(model=model, datamodule=datamodule)
 
     train_metrics = trainer.callback_metrics
 

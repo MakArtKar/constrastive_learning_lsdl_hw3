@@ -1,0 +1,27 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - _self_
+  - stl10_baseline
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+pretrained_experiment:
+
+tags:
+  - fine_tune_${pretrained_experiment}
+  - resnet18
+
+logger:
+  wandb:
+    tags: ${tags}
+    group: fine_tune
+    name: fine_tune_${pretrained_experiment}
+  aim:
+    experiment: fine_tune_${pretrained_experiment}
+
+ckpt_path: logs/report/runs/${pretrained_experiment}/checkpoints/epoch_*.ckpt
