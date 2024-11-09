@@ -26,12 +26,12 @@ class CIFAR10WithDroppedClasses(CIFAR10):
         )
         classes_to_drop = classes_to_drop or []
         self.classes_to_drop = classes_to_drop
-        classes = [class_ for class_ in self.classes if self.class_to_idx[class_] not in classes_to_drop]
+        classes = [class_ for class_ in self.classes if class_ not in classes_to_drop]
         class_to_idx = {class_: idx for idx, class_ in enumerate(classes)}
 
         data, targets = [], []
         for item, target in zip(self.data, self.targets):
-            if target not in self.classes_to_drop:
+            if self.classes[target] not in self.classes_to_drop:
                 data.append(item)
                 targets.append(class_to_idx[self.classes[target]])
         self.data, self.targets = data, targets
