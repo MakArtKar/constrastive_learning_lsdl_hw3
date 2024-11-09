@@ -54,3 +54,11 @@ class BYOLModule(LinearEvalModule):
 
     def on_before_zero_grad(self, optimizer):
         self.net.update_momentum_net()
+
+    def on_validation_epoch_end(self) -> None:
+        "Lightning hook that is called when a validation epoch ends."
+        acc = self.linear_eval_metrics['val_mode']['acc'].compute()  # get current val acc
+        self.val_acc_best(acc)  # update best so far val acc
+        # log `val_acc_best` as a value through `.compute()` method, instead of as a metric object
+        # otherwise metric would be reset by lightning after each epoch
+        self.log(f"linear_eval_val/best_acc", self.val_acc_best.compute(), sync_dist=True, prog_bar=True)

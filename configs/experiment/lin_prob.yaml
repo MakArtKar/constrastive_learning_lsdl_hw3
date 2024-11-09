@@ -1,0 +1,45 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - _self_
+
+seed: 12345
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+num_classes:
+pretrained_experiment:
+
+tags:
+  - lin_prob_${pretrained_experiment}
+  - resnet18
+
+model:
+  net:
+    freeze_encoder: True
+
+logger:
+  wandb:
+    tags: ${tags}
+    group: lin_prob
+    name: lin_prob_${pretrained_experiment}
+  aim:
+    experiment: lin_prob_${pretrained_experiment}
+
+ckpt_path: logs/report/runs/${pretrained_experiment}/checkpoints/epoch_*.ckpt
+
+trainer:
+  max_epochs: 200
+
+data:
+  batch_size: 128
+  pin_memory: True
+
+callbacks:
+  log_images:
+    mean: [0.4914, 0.4822, 0.4465]
+    std: [0.247, 0.243, 0.261]

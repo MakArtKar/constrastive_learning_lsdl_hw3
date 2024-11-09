@@ -2,11 +2,20 @@ import warnings
 from importlib.util import find_spec
 from typing import Any, Callable, Dict, Optional, Tuple
 
+import numpy as np
 from omegaconf import DictConfig
 
 from src.utils import pylogger, rich_utils
 
 log = pylogger.RankedLogger(__name__, rank_zero_only=True)
+
+
+class Alb2TorchvisionWrapper:
+    def __init__(self, alb_transform):
+        self._alb_transform = alb_transform
+
+    def __call__(self, image):
+        return self._alb_transform(image=np.array(image))['image']
 
 
 def extras(cfg: DictConfig) -> None:
