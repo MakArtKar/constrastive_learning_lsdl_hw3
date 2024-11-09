@@ -44,7 +44,7 @@ callbacks:
     std: [0.247, 0.243, 0.261]
   
   early_stopping:
-    monitor: val/best_acc_top1
+    monitor: linear_eval_val/best_acc
   
   model_checkpoint:
-    monitor: val/best_acc_top1
+    monitor: linear_eval_val/best_acc
