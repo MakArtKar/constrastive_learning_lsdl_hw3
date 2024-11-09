@@ -4,7 +4,7 @@ defaults:
   - losses: default
   - metrics: mnist
 
-_target_: src.models.mnist_module.MNISTLitModule
+_target_: src.models.baseline_module.BaselineLitModule
 
 optimizer:
   _target_: torch.optim.Adam

@@ -6,12 +6,13 @@ from lightning import LightningModule
 from torchmetrics import Metric, MaxMetric
 
 from src.models.base_module import BaseModule
+from src.models.components.base import EncoderWithHead
 
 
 class LinearEvalModule(BaseModule):
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: EncoderWithHead,
         feat_dim: int,
         num_classes: int,
         criterion: torch.nn.Module,
@@ -40,13 +41,29 @@ class LinearEvalModule(BaseModule):
     @abstractmethod
     def unsupervised_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
-    ) -> Any:
+    ) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        """
+        Returns tuple of `criterion_inputs` and `metrics_inputs`
+            * `criterion_inputs` - *args for self.criterion call
+            * `metrics_inputs` - *args for self.metrics call
+        Inputs:
+            * `batch` - batch of dataloader
+            * `mode` - current mode, one of ('train', 'val', 'test')
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def linear_eval_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
-    ) -> Any:
+    ) -> Tuple[torch.Tensor, Tuple[torch.Tensor, ...]]:
+        """
+        Returns tuple of `feats` and `targets`
+            * `feats` - encoded representation of `batch`
+            * `targets` - targets of batch, will be passed to criterion and metrics as *args
+        Inputs:
+            * `batch` - batch of dataloader
+            * `mode` - current mode, one of ('train', 'val', 'test')
+        """
         raise NotImplementedError()
 
     def reset_linear_eval_head(self, device) -> None:
@@ -60,10 +77,10 @@ class LinearEvalModule(BaseModule):
 
     def _linear_eval_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
-    ) -> None:
-        inputs, targets = self.linear_eval_model_step(batch, mode)
+    ):
+        feats, targets = self.linear_eval_model_step(batch, mode)
 
-        logits = self.linear_eval_head(*inputs)
+        logits = self.linear_eval_head(feats)
         loss = self.linear_eval_criterion(logits, *targets)
         preds = torch.argmax(logits, dim=1)
 
@@ -78,17 +95,6 @@ class LinearEvalModule(BaseModule):
         )
         return None
 
-    def _unsupervised_model_step(
-        self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
-    ) -> torch.tensor:
-        criterion_inputs, metrics_inputs = self.unsupervised_model_step(batch, mode)
-
-        loss = self.criterion(*criterion_inputs)
-        assert loss.numel() == 1, loss.numel()
-
-        self.logging_step(mode, loss, *metrics_inputs)
-        return loss
-
     def model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
     ) -> torch.tensor:
@@ -96,8 +102,9 @@ class LinearEvalModule(BaseModule):
         batch, batch_idx, self.current_dataloader_idx = batch
 
         if self.current_dataloader_idx == 0:
-            return self._unsupervised_model_step(batch, mode)
+            return self.unsupervised_model_step(batch, mode)
 
         if batch_idx == 0 and mode == 'train':
             self.reset_linear_eval_head(batch[0].device)
+
         return self._linear_eval_model_step(batch, mode)

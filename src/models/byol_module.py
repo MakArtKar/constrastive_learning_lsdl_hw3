@@ -35,9 +35,9 @@ class BYOLModule(LinearEvalModule):
     ) -> torch.tensor:
         (imgs1, imgs2), _ = batch
         x = torch.cat([imgs1, imgs2], dim=0)
-        y, z, q = self.net.forward(x)
+        y, z, q = self.net.forward(x, return_list=True)
         with torch.no_grad():
-            y_ema, z_ema = self.net.forward(x, use_momentum=True)
+            y_ema, z_ema = self.net.forward(x, use_momentum=True, return_list=True)
         q1, q2 = q[:imgs1.size(0)], q[imgs1.size(0):]
         z_ema1, z_ema2 = z_ema[:imgs1.size(0)], z_ema[imgs1.size(0):]
         self.log_z_std(z, 'z_std')
@@ -49,8 +49,8 @@ class BYOLModule(LinearEvalModule):
     ) -> Tuple[torch.tensor, torch.tensor]:
         x, y = batch
         with torch.no_grad():
-            feats = self.net.backbone(x)
-        return [feats], [y]
+            feats = self.net.encoder(x)
+        return feats, [y]
 
     def on_before_zero_grad(self, optimizer):
         self.net.update_momentum_net()

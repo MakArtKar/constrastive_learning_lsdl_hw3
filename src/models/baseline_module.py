@@ -7,7 +7,7 @@ from torchmetrics.classification.accuracy import Accuracy
 from src.models.base_module import BaseModule
 
 
-class MNISTLitModule(BaseModule):
+class BaselineLitModule(BaseModule):
     """Example of a `LightningModule` for MNIST classification.
 
     A `LightningModule` implements 8 key methods:
@@ -54,8 +54,5 @@ class MNISTLitModule(BaseModule):
         """
         x, y = batch
         logits = self.forward(x)
-        loss = self.criterion(logits, y)
         preds = torch.argmax(logits, dim=1)
-
-        self.logging_step(mode, loss, preds, y)
-        return loss
+        return [logits, y], [preds, y]

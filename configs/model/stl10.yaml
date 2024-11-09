@@ -1,13 +1,16 @@
 defaults:
-  - net: resnet18
+  - net: resnet18_with_head
   - criterion: ce_loss
   - losses: default
   - metrics: mnist
 
-_target_: src.models.mnist_module.MNISTLitModule
+_target_: src.models.baseline_module.BaselineLitModule
 
 net:
-  num_classes: ${num_classes}
+  head:
+    _target_: torch.nn.Linear
+    in_features: 512
+    out_features: ${num_classes}
 
 optimizer:
   _target_: torch.optim.SGD

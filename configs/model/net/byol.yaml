@@ -1,13 +1,7 @@
 defaults:
-  - .@backbone.net: resnet18
+  - encoder: resnet18
 
 _target_: src.models.components.byol.BYOL
-
-backbone:
-  _target_: src.models.components.wrappers.ModelConstructor
-  modules:
-    fc:
-      _target_: torch.nn.Identity
 
 projection_head:
   _target_: torch.nn.Sequential
