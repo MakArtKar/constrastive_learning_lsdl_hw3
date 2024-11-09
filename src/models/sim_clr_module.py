@@ -4,12 +4,13 @@ import torch
 from torchmetrics import Metric, MaxMetric
 
 from src.models.linear_eval_base_module import LinearEvalModule
+from src.models.components.base import EncoderWithHead
 
 
 class SimCLRModule(LinearEvalModule):
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: EncoderWithHead,
         feat_dim: int,
         num_classes: int,
         criterion: torch.nn.Module,
@@ -34,8 +35,8 @@ class SimCLRModule(LinearEvalModule):
         x = torch.cat([imgs1, imgs2], dim=0)
         if self.hparams.gpu_train_transform is not None:
             x = self.hparams.gpu_train_transform(x)
-        feats = self.forward(x)
-        return [feats], [feats, feats]
+        h, z = self.net.forward(x, return_list=True)
+        return [z], [h[:imgs1.size(0)], h[imgs1.size(0):]]
 
     def linear_eval_model_step(
         self, batch: Tuple[Tuple[torch.tensor, torch.tensor], torch.Tensor], mode: str
