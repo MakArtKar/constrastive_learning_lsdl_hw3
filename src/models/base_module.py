@@ -40,9 +40,28 @@ class BaseModule(LightningModule):
 
     @abstractmethod
     def model_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], mode: str
-    ) -> torch.Tensor:
+        self, batch: Any, mode: str
+    ) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        """
+        Returns tuple of `criterion_inputs` and `metrics_inputs`
+            * `criterion_inputs` - *args for self.criterion call
+            * `metrics_inputs` - *args for self.metrics call
+        Inputs:
+            * `batch` - batch of dataloader
+            * `mode` - current mode, one of ('train', 'val', 'test')
+        """
         raise NotImplementedError()
+
+    def _model_step(
+        self, batch: Any, mode: str
+    ) -> torch.Tensor:
+        inputs = self.model_step(batch, mode)
+        if inputs is None:
+            return None
+        criterion_inputs, metrics_inputs = inputs
+        loss = self.criterion(*criterion_inputs)
+        self.logging_step(mode, loss, *metrics_inputs)
+        return loss
 
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
@@ -63,7 +82,7 @@ class BaseModule(LightningModule):
 
     def logging_step(
         self, mode: str, loss: torch.Tensor, *metric_args,
-        prefix="", losses=None, metrics=None, **metric_kwargs
+        prefix="", losses=None, metrics=None
     ):
         losses = losses or self.losses
         metrics = metrics or self.metrics
@@ -73,7 +92,7 @@ class BaseModule(LightningModule):
 
         if metrics is not None:
             for metric_name, metric in metrics[f'{mode}_mode'].items():
-                metric(*metric_args, **metric_kwargs)
+                metric(*metric_args)
                 self.log(f"{prefix}{mode}/{metric_name}", metric, on_step=False, on_epoch=True, prog_bar=True)
 
     def training_step(
@@ -86,7 +105,7 @@ class BaseModule(LightningModule):
         :param batch_idx: The index of the current batch.
         :return: A tensor of losses between model predictions and targets.
         """
-        return self.model_step(batch, 'train')
+        return self._model_step(batch, 'train')
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
@@ -99,7 +118,7 @@ class BaseModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        return self.model_step(batch, 'val')
+        return self._model_step(batch, 'val')
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -116,7 +135,7 @@ class BaseModule(LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        return self.model_step(batch, 'test')
+        return self._model_step(batch, 'test')
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""

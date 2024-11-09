@@ -43,4 +43,4 @@ class SimCLRModule(LinearEvalModule):
         x, y = batch
         with torch.no_grad():
             feats = self.forward(x)
-        return [feats], [y]
+        return feats, [y]

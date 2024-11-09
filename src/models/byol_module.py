@@ -50,7 +50,7 @@ class BYOLModule(LinearEvalModule):
         x, y = batch
         with torch.no_grad():
             feats = self.net.encoder(x)
-        return [feats], [y]
+        return feats, [y]
 
     def on_before_zero_grad(self, optimizer):
         self.net.update_momentum_net()

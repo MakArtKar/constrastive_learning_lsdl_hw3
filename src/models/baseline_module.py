@@ -54,8 +54,5 @@ class BaselineLitModule(BaseModule):
         """
         x, y = batch
         logits = self.forward(x)
-        loss = self.criterion(logits, y)
         preds = torch.argmax(logits, dim=1)
-
-        self.logging_step(mode, loss, preds, y)
-        return loss
+        return [logits, y], [preds, y]
