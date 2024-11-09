@@ -1,5 +1,9 @@
 _target_: albumentations.Compose
 transforms:
+  - _target_: albumentations.Resize
+    width: 96
+    height: 96
+    p: 1
   - _target_: albumentations.Normalize
     mean: [0.4914, 0.4822, 0.4465]
     std: [0.247, 0.243, 0.261]
