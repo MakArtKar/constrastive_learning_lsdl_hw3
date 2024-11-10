@@ -1,6 +1,24 @@
 <div align="center">
 
-# Lightning-Hydra-Template
+# Contrastive learning LSDL homework
+
+</div>
+
+Implemented SimCLR and BYOL papers, ran on STL10 and tuned on CIFAR10.
+
+[WanDB report](https://wandb.ai/makartkar/constrastive_learning_lsdl_hw3/reports/Contrastive-learning--VmlldzoxMDEwMDg2MA)
+
+[WanDB experiments](https://wandb.ai/makartkar/constrastive_learning_lsdl_hw3?nw=nwusermakartkar)
+
+Experiments can be reproduced, check [scripts](scripts)
+
+Checkpoints can be found in WanDB experiments in artifacts - best (v0) and latest (v1) models are logged.
+
+<br>
+
+<div align="center">
+
+# Lightning-Hydra-Template (inherited README)
 
 [![python](https://img.shields.io/badge/-Python_3.8_%7C_3.9_%7C_3.10-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
